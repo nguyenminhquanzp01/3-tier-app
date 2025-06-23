@@ -8,58 +8,59 @@ metadata:
   labels:
     app: jenkins-kaniko
 spec:
+  initContainers:
+  - name: init-kaniko
+    image: busybox:1.28
+    command: ['sh', '-c', 'until [ -f /workspace/ready ]; do sleep 1; done']
+    volumeMounts:
+    - name: workspace
+      mountPath: /workspace
+
   containers:
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:debug-v0.19.0
-    command:
-    - /busybox/cat
+    image: gcr.io/kaniko-project/executor:latest
+    command: ['/kaniko/executor']
+    args: [
+      '--context=/workspace',
+      '--dockerfile=/workspace/Dockerfile',
+      '--destination=${IMAGE}',
+      '--skip-tls-verify'
+    ]
     volumeMounts:
-      - name: docker-config
-        mountPath: /kaniko/.docker
+    - name: workspace
+      mountPath: /workspace
+    - name: docker-config
+      mountPath: /kaniko/.docker
+
+  - name: sidecar
+    image: busybox:1.28
+    command: ['sh', '-c', 'touch /workspace/ready && sleep infinity']
+    volumeMounts:
+    - name: workspace
+      mountPath: /workspace
+
   volumes:
+  - name: workspace
+    emptyDir: {}
   - name: docker-config
-    projected:
-      sources:
-        - secret:
-            name: docker-config
+    secret:
+      secretName: docker-config
 """
-      defaultContainer 'kaniko'
     }
   }
 
-  // Phần còn lại giữ nguyên
   environment {
     IMAGE = "nguyenminhquanzp01/3-tier-app:${BUILD_NUMBER}"
-    CONFIG_REPO = "git@github.com:nguyenminhquanzp01/3-tier-app-cicd.git"
   }
 
   stages {
-    stage('Build and Push Image') {
+    stage('Build and Push') {
       steps {
         container('kaniko') {
-          sh '''
-            /kaniko/executor \
-              --context `pwd` \
-              --dockerfile `pwd`/Dockerfile \
-              --destination=$IMAGE \
-              --skip-tls-verify
-          '''
-        }
-      }
-    }
-
-    stage('Update ArgoCD values') {
-      steps {
-        sshagent(['git-ssh-key-config']) {
-          sh '''
-            git clone $CONFIG_REPO
-            cd 3-tier-app-cicd
-            yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
-            git config user.name jenkins
-            git config user.email jenkins@ci
-            git commit -am "Update image tag to ${BUILD_NUMBER}"
-            git push
-          '''
+          script {
+            // Kaniko sẽ tự động chạy khi initContainer hoàn thành
+            // và sidecar đã tạo file ready
+          }
         }
       }
     }
