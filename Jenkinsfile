@@ -34,7 +34,7 @@ pipeline {
       sh """
         rm -rf 3-tier-app-cicd
         git clone git@github.com:nguyenminhquanzp01/3-tier-app-cicd.git
-        cd 3-tier-app-cicd/apps
+        cd 3-tier-app-cicd/my-app
         sed -i 's/tag: \".*\"/tag: \"${BUILD_NUMBER}\"/' values.yaml
         git config user.name jenkins
         git config user.email jenkins@ci
