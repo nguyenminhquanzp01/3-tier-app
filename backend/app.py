@@ -13,6 +13,7 @@ collection = db["attendees"]
 @app.route("/api/attendees")
 def get_attendees():
     attendees = list(collection.find({}, {"_id": 0}))
+    print("Hello")
     return jsonify(attendees)
 
 if __name__ == "__main__":
