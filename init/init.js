@@ -1,0 +1,26 @@
+db = db.getSiblingDB('course');
+db.attendees.insertMany([
+  { name: "Nguyễn Đăng Quân", dob: "11/5/2004", school: "Đại học Công nghệ (UET)" },
+  { name: "Trịnh Vinh Tuấn Đạt", dob: "5/10/2003", school: "Học viện Công nghệ Bưu chính Viễn thông - Cơ sở phía Bắc" },
+  { name: "Ngô Xuân Hòa", dob: "27/07/2004", school: "Học viện Công nghệ Bưu chính Viễn thông - Cơ sở phía Bắc" },
+  { name: "Bùi Đức Hùng", dob: "31/07/2004", school: "Đại học Bách Khoa Hà Nội (HUST)" },
+  { name: "Nguyễn Tuấn Anh", dob: "25/01/2003", school: "Đại học Bách Khoa Hà Nội (HUST)" },
+  { name: "Lương Nhật Hào", dob: "9/7/2003", school: "Đại học Công nghệ (UET)" },
+  { name: "Nguyễn Đức Anh", dob: "23/01/2003", school: "Học viện Công nghệ Bưu chính Viễn thông - Cơ sở phía Bắc" },
+  { name: "Đinh Trường Lãm", dob: "23/02/2001", school: "Đại học tổng hợp ITMO" },
+  { name: "Nguyễn Đăng Bảo Lâm", dob: "17/08/2004", school: "Đại học Bách Khoa Hà Nội (HUST)" },
+  { name: "Phạm Ngọc Hải Dương", dob: "20/03/2005", school: "Đại học Công nghệ (UET)" },
+  { name: "Nguyễn Minh Quân", dob: "5/1/2004", school: "Đại học Bách Khoa Hà Nội (HUST)" },
+  { name: "Nguyễn Sỹ Tân", dob: "7/7/2004", school: "Đại học Công nghệ (UET)" },
+  { name: "Mai Xuân Duy Quang", dob: "4/7/2003", school: "Đại học Bách Khoa Hà Nội (HUST)" },
+  { name: "Lê Tấn Phát", dob: "15/12/2004", school: "ĐH Mở Tp.HCM" },
+  { name: "Nguyễn Quang Ninh", dob: "24/04/2004", school: "Đại học Công nghệ (UET)" },
+  { name: "Nguyễn Trung Vương", dob: "3/10/2003", school: "Đại học Bách Khoa - ĐHQG TPHCM (HCMUT)" },
+  { name: "Nguyễn Phước Ngưỡng Long", dob: "18/10/2005", school: "Đại học Công nghệ (UET)" },
+  { name: "Nguyễn Văn Dương", dob: "30/10/2003", school: "Đại học Công nghệ (UET)" },
+  { name: "Lê Minh Hoàng", dob: "17/05/2004", school: "Đại học Khoa học tự nhiên - ĐHQG TPHCM (HCMUS)" },
+  { name: "Nguyễn Đức Thịnh", dob: "10/9/2001", school: "Đại học Thủy Lợi" },
+  { name: "Hoàng Minh Thắng", dob: "9/6/1999", school: "Đại học tổng hợp ITMO" },
+  { name: "Vũ Đình Ngọc Bảo", dob: "29/01/2005", school: "Đại học Khoa học tự nhiên - ĐHQG TPHCM (HCMUS)" },
+  { name: "Nguyễn Hồng Lĩnh", dob: "8/12/2003", school: "Đại học Công nghệ (UET)" }
+]);
