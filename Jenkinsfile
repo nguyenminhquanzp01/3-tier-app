@@ -1,66 +1,41 @@
 pipeline {
-  agent {
-    kubernetes {
-      yaml """
-apiVersion: v1
-kind: Pod
-metadata:
-  labels:
-    app: jenkins-kaniko
-spec:
-  initContainers:
-  - name: init-kaniko
-    image: busybox:1.28
-    command: ['sh', '-c', 'until [ -f /workspace/ready ]; do sleep 1; done']
-    volumeMounts:
-    - name: workspace
-      mountPath: /workspace
-
-  containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    command: ['/kaniko/executor']
-    args: [
-      '--context=/workspace',
-      '--dockerfile=/workspace/Dockerfile',
-      '--destination=${IMAGE}',
-      '--skip-tls-verify'
-    ]
-    volumeMounts:
-    - name: workspace
-      mountPath: /workspace
-    - name: docker-config
-      mountPath: /kaniko/.docker
-
-  - name: sidecar
-    image: busybox:1.28
-    command: ['sh', '-c', 'touch /workspace/ready && sleep infinity']
-    volumeMounts:
-    - name: workspace
-      mountPath: /workspace
-
-  volumes:
-  - name: workspace
-    emptyDir: {}
-  - name: docker-config
-    secret:
-      secretName: docker-config
-"""
-    }
-  }
+  agent any
 
   environment {
     IMAGE = "nguyenminhquanzp01/3-tier-app:${BUILD_NUMBER}"
+    CONFIG_REPO = "git@github.com:nguyenminhquanzp01/3-tier-app-cicd.git"
   }
 
   stages {
-    stage('Build and Push') {
+    stage('Build Docker Image') {
       steps {
-        container('kaniko') {
-          script {
-            // Kaniko sẽ tự động chạy khi initContainer hoàn thành
-            // và sidecar đã tạo file ready
-          }
+        sh 'docker build -t $IMAGE .'
+      }
+    }
+
+    stage('Push Docker Image') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+          sh '''
+            echo $PASS | docker login -u $USER --password-stdin
+            docker push $IMAGE
+          '''
+        }
+      }
+    }
+
+    stage('Update ArgoCD Config') {
+      steps {
+        sshagent(['git-ssh-key']) {
+          sh '''
+            git clone $CONFIG_REPO
+            cd 3-tier-app-cicd
+            yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
+            git config user.name jenkins
+            git config user.email jenkins@ci
+            git commit -am "update image tag to ${BUILD_NUMBER}"
+            git push
+          '''
         }
       }
     }
