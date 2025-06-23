@@ -1,5 +1,32 @@
 pipeline {
-  agent any
+  agent {
+    kubernetes {
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: jenkins-kaniko
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    command:
+    - cat
+    tty: true
+    volumeMounts:
+      - name: docker-config
+        mountPath: /kaniko/.docker
+  volumes:
+  - name: docker-config
+    projected:
+      sources:
+        - secret:
+            name: docker-config
+"""
+      defaultContainer 'kaniko'
+    }
+  }
 
   environment {
     IMAGE = "nguyenminhquanzp01/3-tier-app:${BUILD_NUMBER}"
@@ -7,17 +34,19 @@ pipeline {
   }
 
   stages {
-    stage('Build') {
+    stage('Build and Push Image') {
       steps {
-        sh "docker build -t $IMAGE ."
-      }
-    }
+        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          sh '''
+            mkdir -p /kaniko/.docker
+            echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"$DOCKER_USER\",\"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
 
-    stage('Push Image') {
-      steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-          sh "echo $PASS | docker login -u $USER --password-stdin"
-          sh "docker push $IMAGE"
+            /kaniko/executor \
+              --context `pwd` \
+              --dockerfile `pwd`/Dockerfile \
+              --destination=$IMAGE \
+              --skip-tls-verify
+          '''
         }
       }
     }
@@ -25,7 +54,7 @@ pipeline {
     stage('Update ArgoCD values') {
       steps {
         sshagent(['git-ssh-key']) {
-          sh """
+          sh '''
             git clone $CONFIG_REPO
             cd 3-tier-app-cicd
             yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
@@ -33,7 +62,7 @@ pipeline {
             git config user.email jenkins@ci
             git commit -am "Update image tag to ${BUILD_NUMBER}"
             git push
-          """
+          '''
         }
       }
     }
