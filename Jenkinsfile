@@ -10,9 +10,9 @@ metadata:
 spec:
   containers:
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:debug  // Sử dụng image debug thay vì latest
-    command: ["/busybox/sleep"]  // Sử dụng sleep từ busybox
-    args: ["9999999"]
+    image: gcr.io/kaniko-project/executor:latest
+    command: ["tail"]
+    args: ["-f", "/dev/null"]
     volumeMounts:
       - name: docker-config
         mountPath: /kaniko/.docker
@@ -27,6 +27,7 @@ spec:
     }
   }
 
+  // Phần còn lại giữ nguyên
   environment {
     IMAGE = "nguyenminhquanzp01/3-tier-app:${BUILD_NUMBER}"
     CONFIG_REPO = "git@github.com:nguyenminhquanzp01/3-tier-app-cicd.git"
@@ -35,16 +36,14 @@ spec:
   stages {
     stage('Build and Push Image') {
       steps {
-        container('kaniko') {  // Thêm container context
-          script {
-            sh '''
-              /kaniko/executor \
-                --context `pwd` \
-                --dockerfile `pwd`/Dockerfile \
-                --destination=$IMAGE \
-                --skip-tls-verify
-            '''
-          }
+        container('kaniko') {
+          sh '''
+            /kaniko/executor \
+              --context `pwd` \
+              --dockerfile `pwd`/Dockerfile \
+              --destination=$IMAGE \
+              --skip-tls-verify
+          '''
         }
       }
     }
@@ -52,18 +51,15 @@ spec:
     stage('Update ArgoCD values') {
       steps {
         sshagent(['git-ssh-key-config']) {
-          script {  // Thêm script block
-            sh '''
-              git clone $CONFIG_REPO
-              cd 3-tier-app-cicd
-              yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
-              git config user.name "Jenkins CI"
-              git config user.email "jenkins@ci.example.com"
-              git add values.yaml
-              git commit -m "Update image tag to ${BUILD_NUMBER}"
-              git push origin HEAD
-            '''
-          }
+          sh '''
+            git clone $CONFIG_REPO
+            cd 3-tier-app-cicd
+            yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
+            git config user.name jenkins
+            git config user.email jenkins@ci
+            git commit -am "Update image tag to ${BUILD_NUMBER}"
+            git push
+          '''
         }
       }
     }
