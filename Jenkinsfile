@@ -1,7 +1,7 @@
 pipeline {
   agent {
-  kubernetes {
-    yaml """
+    kubernetes {
+      yaml """
 apiVersion: v1
 kind: Pod
 metadata:
@@ -10,11 +10,9 @@ metadata:
 spec:
   containers:
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    command:
-    command: [sleep]
-    args: [9999999]
-    tty: true
+    image: gcr.io/kaniko-project/executor:debug  // Sử dụng image debug thay vì latest
+    command: ["/busybox/sleep"]  // Sử dụng sleep từ busybox
+    args: ["9999999"]
     volumeMounts:
       - name: docker-config
         mountPath: /kaniko/.docker
@@ -25,10 +23,9 @@ spec:
         - secret:
             name: docker-config
 """
-    defaultContainer 'kaniko'
+      defaultContainer 'kaniko'
+    }
   }
-}
-
 
   environment {
     IMAGE = "nguyenminhquanzp01/3-tier-app:${BUILD_NUMBER}"
@@ -38,28 +35,35 @@ spec:
   stages {
     stage('Build and Push Image') {
       steps {
-        sh '''
-          /kaniko/executor \
-            --context `pwd` \
-            --dockerfile `pwd`/Dockerfile \
-            --destination=$IMAGE \
-            --skip-tls-verify
-        '''
+        container('kaniko') {  // Thêm container context
+          script {
+            sh '''
+              /kaniko/executor \
+                --context `pwd` \
+                --dockerfile `pwd`/Dockerfile \
+                --destination=$IMAGE \
+                --skip-tls-verify
+            '''
+          }
+        }
       }
     }
 
     stage('Update ArgoCD values') {
       steps {
         sshagent(['git-ssh-key-config']) {
-          sh '''
-            git clone $CONFIG_REPO
-            cd 3-tier-app-cicd
-            yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
-            git config user.name jenkins
-            git config user.email jenkins@ci
-            git commit -am "Update image tag to ${BUILD_NUMBER}"
-            git push
-          '''
+          script {  // Thêm script block
+            sh '''
+              git clone $CONFIG_REPO
+              cd 3-tier-app-cicd
+              yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
+              git config user.name "Jenkins CI"
+              git config user.email "jenkins@ci.example.com"
+              git add values.yaml
+              git commit -m "Update image tag to ${BUILD_NUMBER}"
+              git push origin HEAD
+            '''
+          }
         }
       }
     }
