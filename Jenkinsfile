@@ -1,7 +1,7 @@
 pipeline {
   agent {
-    kubernetes {
-      yaml """
+  kubernetes {
+    yaml """
 apiVersion: v1
 kind: Pod
 metadata:
@@ -12,6 +12,9 @@ spec:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     command:
+    - sh
+    args:
+    - -c
     - cat
     tty: true
     volumeMounts:
@@ -24,9 +27,10 @@ spec:
         - secret:
             name: docker-config
 """
-      defaultContainer 'kaniko'
-    }
+    defaultContainer 'kaniko'
   }
+}
+
 
   environment {
     IMAGE = "nguyenminhquanzp01/3-tier-app:${BUILD_NUMBER}"
