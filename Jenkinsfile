@@ -10,9 +10,9 @@ metadata:
 spec:
   containers:
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    command: ["tail"]
-    args: ["-f", "/dev/null"]
+    image: gcr.io/kaniko-project/executor:debug-v0.19.0
+    command:
+    - /busybox/cat
     volumeMounts:
       - name: docker-config
         mountPath: /kaniko/.docker
