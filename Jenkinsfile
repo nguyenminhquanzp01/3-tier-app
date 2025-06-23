@@ -2,24 +2,27 @@ pipeline {
   agent any
 
   environment {
-    IMAGE = "nguyenminhquanzp01/3-tier-app:${BUILD_NUMBER}"
+    IMAGE_TAG = "${BUILD_NUMBER}"
     CONFIG_REPO = "git@github.com:nguyenminhquanzp01/3-tier-app-cicd.git"
   }
 
   stages {
-    stage('Build Docker Image') {
+    stage('Build with Compose') {
       steps {
-        sh 'docker build -t $IMAGE .'
+        sh """
+          docker-compose build --no-cache backend
+          docker tag 3-tier-app_backend:latest nguyenminhquanzp01/3-tier-app:${IMAGE_TAG}
+        """
       }
     }
 
-    stage('Push Docker Image') {
+    stage('Push to Docker Hub') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-          sh '''
+          sh """
             echo $PASS | docker login -u $USER --password-stdin
-            docker push $IMAGE
-          '''
+            docker push nguyenminhquanzp01/3-tier-app:${IMAGE_TAG}
+          """
         }
       }
     }
@@ -27,15 +30,15 @@ pipeline {
     stage('Update ArgoCD Config') {
       steps {
         sshagent(['git-ssh-key']) {
-          sh '''
+          sh """
             git clone $CONFIG_REPO
             cd 3-tier-app-cicd
-            yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
+            yq e '.image.tag = "${IMAGE_TAG}"' -i values.yaml
             git config user.name jenkins
             git config user.email jenkins@ci
-            git commit -am "update image tag to ${BUILD_NUMBER}"
+            git commit -am "update image tag ${IMAGE_TAG}"
             git push
-          '''
+          """
         }
       }
     }
