@@ -28,22 +28,22 @@ pipeline {
       }
     }
 
-    stage('Update ArgoCD Config') {
-      steps {
-        echo "Cloning and updating ArgoCD values.yaml..."
-        sshagent(['git-ssh-key']) {
-          sh """
-            git clone ${CONFIG_REPO}
-            cd 3-tier-app-cicd
-            yq e '.image.tag = "${IMAGE_TAG}"' -i values.yaml
-            git config user.name jenkins
-            git config user.email jenkins@ci
-            git add values.yaml
-            git commit -m "Update image tag to ${IMAGE_TAG}"
-            git push
-          """
-        }
-      }
+    stage('Update ArgoCD values') {
+  steps {
+    sshagent(['git-ssh-key']) {
+      sh """
+        rm -rf 3-tier-app-cicd
+        git clone git@github.com:nguyenminhquanzp01/3-tier-app-cicd.git
+        cd 3-tier-app-cicd
+        sed -i 's/tag: \".*\"/tag: \"${BUILD_NUMBER}\"/' values.yaml
+        git config user.name jenkins
+        git config user.email jenkins@ci
+        git commit -am "Update image tag to ${BUILD_NUMBER}"
+        git push
+      """
     }
+  }
+}
+
   }
 }
