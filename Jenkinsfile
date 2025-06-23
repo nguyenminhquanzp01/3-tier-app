@@ -11,9 +11,17 @@ spec:
   containers:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
+    imagePullPolicy: Always
     command:
     - cat
     tty: true
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "1"
+        memory: "2Gi"
     volumeMounts:
       - name: docker-config
         mountPath: /kaniko/.docker
@@ -23,6 +31,9 @@ spec:
       sources:
         - secret:
             name: docker-config
+            items:
+              - key: .dockerconfigjson
+                path: config.json
 """
       defaultContainer 'kaniko'
     }
@@ -36,35 +47,53 @@ spec:
   stages {
     stage('Build and Push Image') {
       steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          sh '''
-            mkdir -p /kaniko/.docker
-            echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"$DOCKER_USER\",\"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
-
-            /kaniko/executor \
-              --context `pwd` \
-              --dockerfile `pwd`/Dockerfile \
-              --destination=$IMAGE \
-              --skip-tls-verify
-          '''
+        script {
+          try {
+            sh '''
+              /kaniko/executor \
+                --context `pwd` \
+                --dockerfile `pwd`/Dockerfile \
+                --destination=$IMAGE \
+                --cache=true \
+                --skip-tls-verify
+            '''
+          } catch (e) {
+            error("Failed to build and push image: ${e.getMessage()}")
+          }
         }
       }
     }
 
     stage('Update ArgoCD values') {
+      when {
+        expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+      }
       steps {
         sshagent(['git-ssh-key']) {
-          sh '''
-            git clone $CONFIG_REPO
-            cd 3-tier-app-cicd
-            yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
-            git config user.name jenkins
-            git config user.email jenkins@ci
-            git commit -am "Update image tag to ${BUILD_NUMBER}"
-            git push
-          '''
+          script {
+            try {
+              sh '''
+                git clone $CONFIG_REPO
+                cd 3-tier-app-cicd
+                yq e '.image.tag = "${BUILD_NUMBER}"' -i values.yaml
+                git config user.name "Jenkins CI"
+                git config user.email "jenkins@ci.example.com"
+                git add values.yaml
+                git commit -m "Update image tag to ${BUILD_NUMBER}"
+                git push origin HEAD
+              '''
+            } catch (e) {
+              error("Failed to update ArgoCD values: ${e.getMessage()}")
+            }
+          }
         }
       }
+    }
+  }
+
+  post {
+    always {
+      cleanWs()
     }
   }
 }
