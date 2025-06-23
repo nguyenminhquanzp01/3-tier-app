@@ -11,6 +11,7 @@ services:
       - ./init:/docker-entrypoint-initdb.d
 
   backend:
+    image: nguyenminhquanzp01/3-tier-app:1.0
     build: ./backend
     container_name: backend
     ports:
