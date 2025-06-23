@@ -12,10 +12,9 @@ spec:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     command:
-    - sh
+    - sleep
     args:
-    - -c
-    - cat
+    - infinity
     tty: true
     volumeMounts:
       - name: docker-config
